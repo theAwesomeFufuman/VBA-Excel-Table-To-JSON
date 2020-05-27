@@ -82,8 +82,8 @@ Sub ExcelToJSON()
         WBName = strQuote & Left(ActiveWorkbook.Name, Len(ActiveWorkbook.Name)) & strQuote
         'Print initial curly bracket, name of the workbook and an array for all tables in the workbook
         Print #1, "{"
-        Print #1, strQuote & "Workbook" & strQuote & ": " & WBName & ","
-        Print #1, strQuote & "Tables" & strQuote & ": " & "["
+        Print #1, "    " & strQuote & "Workbook" & strQuote & ": " & WBName & ","
+        Print #1, "    " & strQuote & "Tables" & strQuote & ": " & "["
         'Select the first worksheet in the workbook
         Worksheets(1).Activate
         'Loop through all Worksheets in the workbook for the 2nd time
@@ -95,44 +95,44 @@ Sub ExcelToJSON()
                         'Count how many tables has been looped through
                         TableCount = TableCount - 1
                         'Print initial curly bracket for the current table
-                        Print #1, "{"
-                        Print #1, strQuote & "TableName" & strQuote & ": " & strQuote & Table.Name & strQuote & ","
+                        Print #1, "        " & "{"
+                        Print #1, "            " & strQuote & "TableName" & strQuote & ": " & strQuote & Table.Name & strQuote & ","
                         'Loop through all rows in the current table
                         For y = 1 To Table.ListRows.Count
                             Table.ListRows(y).Range.Select
                             'If the cell is empty, generate a name for the JSON Key
                             Dim tblRowKeyVal As String
-                            'tblRowKeyVal = IIf(((ActiveCell.Value) = ""), WorksheetFunction.Concat(Table.Name, y), ActiveCell.Value.Replace(strQuote, "\" & strQuote))
                             tblRowKeyVal = IIf(((ActiveCell.Value) = ""), WorksheetFunction.Concat(Table.Name, y), Replace(CStr(ActiveCell.Value), strQuote, "\" & strQuote))
                             'Print the cell value of the first cell in the row as a JSON key followed by curly brackets
-                            Print #1, strQuote & tblRowKeyVal & strQuote & ": {"
+                            Print #1, "            " & strQuote & tblRowKeyVal & strQuote & ": {"
                             'Loop through all cells in current row, start with the second one
                             For j = 2 To Table.ListColumns.Count
                                 'Select the second cell from the left in the row
                                 ActiveCell.Offset(, 1).Activate
                                 'Print the column header as key and cell contents as value
-                                'Print #1, strQuote & Table.HeaderRowRange(j).Value & strQuote & ": " & strQuote & CStr(ActiveCell.Value.Replace(strQuote, "\" & strQuote)) & strQuote
-                                Print #1, strQuote & Table.HeaderRowRange(j).Value & strQuote & ": " & strQuote & Replace(CStr(ActiveCell.Value), strQuote, "\" & strQuote) & strQuote
+                                Dim strToPrint As String
+                                strToPrint = "                " & strQuote & Table.HeaderRowRange(j).Value & strQuote & ": " & strQuote & Replace(CStr(ActiveCell.Value), strQuote, "\" & strQuote) & strQuote
                                 'If the cell is not the last iteration, then print a ","
                                 If j < Table.ListColumns.Count Then
-                                    Print #1, ","
+                                    strToPrint = strToPrint & ","
                                 End If
+                                Print #1, strToPrint
                             Next j
                             'Reselect the first cell of the row
                             ActiveCell.Offset(, (Table.ListColumns.Count * -1) + 1).Activate
                             'If the loop is not on the last iteration, put a "," after the ending curly bracket, otherwise, skip it
+                            strToPrint = "            " & "}"
                             If y < Table.ListRows.Count Then
-                                Print #1, "},"
-                            Else
-                                Print #1, "}"
+                                strToPrint = strToPrint & ","
                             End If
+                            Print #1, strToPrint
                         Next
                         'If the loop is not on the last iteration, put a "," after the ending curly bracket, otherwise, skip it
+                        strToPrint = "        " & "}"
                         If TableCount > 0 Then
-                            Print #1, "},"
-                        Else
-                            Print #1, "}"
+                            strToPrint = strToPrint & ","
                         End If
+                        Print #1, strToPrint
                     End If
                 Next
             Next Table
@@ -143,7 +143,7 @@ Sub ExcelToJSON()
             End If
         Next
         'Print closing square bracket and curly bracket
-        Print #1, "]"
+        Print #1, "    " & "]"
         Print #1, "}"
         'Close the file editing
         Close #1
