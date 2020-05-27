@@ -83,7 +83,7 @@ Sub ExcelToJSON()
         'Print initial curly bracket, name of the workbook and an array for all tables in the workbook
         Print #1, "{"
         Print #1, "    " & strQuote & "Workbook" & strQuote & ": " & WBName & ","
-        Print #1, "    " & strQuote & "Tables" & strQuote & ": " & "["
+        Print #1, "    " & strQuote & "Tables" & strQuote & ": " & "{"
         'Select the first worksheet in the workbook
         Worksheets(1).Activate
         'Loop through all Worksheets in the workbook for the 2nd time
@@ -95,8 +95,7 @@ Sub ExcelToJSON()
                         'Count how many tables has been looped through
                         TableCount = TableCount - 1
                         'Print initial curly bracket for the current table
-                        Print #1, "        " & "{"
-                        Print #1, "            " & strQuote & "TableName" & strQuote & ": " & strQuote & Table.Name & strQuote & ","
+                        Print #1, "        " & strQuote & Table.Name & strQuote & ": {"
                         'Loop through all rows in the current table
                         For y = 1 To Table.ListRows.Count
                             Table.ListRows(y).Range.Select
@@ -143,7 +142,7 @@ Sub ExcelToJSON()
             End If
         Next
         'Print closing square bracket and curly bracket
-        Print #1, "    " & "]"
+        Print #1, "    " & "}"
         Print #1, "}"
         'Close the file editing
         Close #1
