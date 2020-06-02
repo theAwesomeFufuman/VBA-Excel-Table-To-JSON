@@ -1,7 +1,7 @@
 Attribute VB_Name = "ExcelToJSON"
-'Declare variable for storing slected tables
+'Declare variable for storing selected tables
 Public SlctTbls()
-'Declare variable for storing slected table worksheets
+'Declare variable for storing selected table worksheets
 Public SlctSheets()
 'Declare variable for storing numbers of tables in the workbook
 Public TableCount As Integer
@@ -82,20 +82,26 @@ Sub ExcelToJSON()
         WBName = strQuote & Left(ActiveWorkbook.Name, Len(ActiveWorkbook.Name)) & strQuote
         'Print initial curly bracket, name of the workbook and an array for all tables in the workbook
         Print #1, "{"
-        Print #1, "    " & strQuote & "Workbook" & strQuote & ": " & WBName & ","
-        Print #1, "    " & strQuote & "Tables" & strQuote & ": " & "{"
+        Print #1, "    " & strQuote & "Source file name" & strQuote & ": " & WBName & ","
+        Print #1, "    " & strQuote & "Worksheets" & strQuote & ": " & "{"
         'Select the first worksheet in the workbook
         Worksheets(1).Activate
         'Loop through all Worksheets in the workbook for the 2nd time
         For Each Sheet In Worksheets
+            tablesInSheet = 0
+            'Print initial curly bracket for the current sheet
+            Print #1, "        " & strQuote & Sheet.Name & strQuote & ": {"
+            'Print initial curly bracket for the "tables" object inside the sheet object
+            Print #1, "            " & strQuote & "Tables" & strQuote & ": {"
             'Loop through all tables in the workbook for the 2nd time
             For Each Table In Sheet.ListObjects
+                tablesInSheet = tablesInSheet + 1
                 For i = 0 To UBound(SlctTbls)
                     If Table.Name = SlctTbls(i) Then
                         'Count how many tables has been looped through
                         TableCount = TableCount - 1
                         'Print initial curly bracket for the current table
-                        Print #1, "        " & strQuote & Table.Name & strQuote & ": {"
+                        Print #1, "                " & strQuote & Table.Name & strQuote & ": {"
                         'Loop through all rows in the current table
                         For y = 1 To Table.ListRows.Count
                             Table.ListRows(y).Range.Select
@@ -103,14 +109,14 @@ Sub ExcelToJSON()
                             Dim tblRowKeyVal As String
                             tblRowKeyVal = IIf(((ActiveCell.Value) = ""), WorksheetFunction.Concat(Table.Name, y), Replace(CStr(ActiveCell.Value), strQuote, "\" & strQuote))
                             'Print the cell value of the first cell in the row as a JSON key followed by curly brackets
-                            Print #1, "            " & strQuote & tblRowKeyVal & strQuote & ": {"
+                            Print #1, "                    " & strQuote & tblRowKeyVal & strQuote & ": {"
                             'Loop through all cells in current row, start with the second one
                             For j = 2 To Table.ListColumns.Count
                                 'Select the second cell from the left in the row
                                 ActiveCell.Offset(, 1).Activate
                                 'Print the column header as key and cell contents as value
                                 Dim strToPrint As String
-                                strToPrint = "                " & strQuote & Table.HeaderRowRange(j).Value & strQuote & ": " & strQuote & Replace(CStr(ActiveCell.Value), strQuote, "\" & strQuote) & strQuote
+                                strToPrint = "                        " & strQuote & Table.HeaderRowRange(j).Value & strQuote & ": " & strQuote & Replace(CStr(ActiveCell.Value), strQuote, "\" & strQuote) & strQuote
                                 'If the cell is not the last iteration, then print a ","
                                 If j < Table.ListColumns.Count Then
                                     strToPrint = strToPrint & ","
@@ -120,24 +126,31 @@ Sub ExcelToJSON()
                             'Reselect the first cell of the row
                             ActiveCell.Offset(, (Table.ListColumns.Count * -1) + 1).Activate
                             'If the loop is not on the last iteration, put a "," after the ending curly bracket, otherwise, skip it
-                            strToPrint = "            " & "}"
+                            strToPrint = "                    " & "}"
                             If y < Table.ListRows.Count Then
                                 strToPrint = strToPrint & ","
                             End If
                             Print #1, strToPrint
                         Next
                         'If the loop is not on the last iteration, put a "," after the ending curly bracket, otherwise, skip it
-                        strToPrint = "        " & "}"
-                        If TableCount > 0 Then
+                        strToPrint = "                " & "}"
+                        If tablesInSheet < Sheet.ListObjects.Count Then
                             strToPrint = strToPrint & ","
                         End If
                         Print #1, strToPrint
                     End If
                 Next
             Next Table
+            'Print the closing bracket for the tables object inside the worksheet object
+            Print #1, "            " & "}"
+            'Print the closing curly bracket for the sheet
+            strToPrint = "        " & "}"
+            If Sheet.Index < Worksheets.Count Then
+                strToPrint = strToPrint & ","
+            End If
+            Print #1, strToPrint
             'If the loop has come to the last worksheet, activate the first one again
-            If ActiveSheet.Index = Worksheets.Count Then
-            Else
+            If ActiveSheet.Index <> Worksheets.Count Then
                 Worksheets(ActiveSheet.Index + 1).Activate
             End If
         Next
