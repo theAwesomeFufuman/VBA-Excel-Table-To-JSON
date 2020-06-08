@@ -1,10 +1,10 @@
 VERSION 5.00
 Begin {C62A69F0-16DC-11CE-9E98-00AA00574A4F} ExcelToJSONForm 
    Caption         =   "Select table(s)"
-   ClientHeight    =   2710
-   ClientLeft      =   -230
-   ClientTop       =   -1050
-   ClientWidth     =   5860
+   ClientHeight    =   3240
+   ClientLeft      =   -345
+   ClientTop       =   -1950
+   ClientWidth     =   6570
    OleObjectBlob   =   "ExcelToJSONForm.frx":0000
    StartUpPosition =   1  'CenterOwner
 End
@@ -13,9 +13,9 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
+Option Explicit
 'Declare variable for looping through User Form Controls
 Public usrFrmCtrl As Object
-
 Private Sub CancelBtn_Click()
     End
 End Sub
@@ -64,12 +64,10 @@ Private Sub SubmitBtn_Click()
                 'If a checkbox is checked, increase the number of checked checkboxes
                 If usrFrmCtrl = True Then
                     j = j + 1
-                    'Increase the SlctTbls array length to be equal to the slected number of tables
-                    ReDim Preserve SlctTbls(0 To j + 1)
-                    'Increase TableCount to be equal to the number of selected tables
-                    TableCount = UBound(SlctTbls) - 1
-                    'Add the table names to SlctTbls
-                    SlctTbls(j) = usrFrmCtrl.Caption
+                    'Increase the slctdTblsNameArray array length to be equal to the slected number of tables
+                    ReDim Preserve usrSlctdTblsNameArray(0 To j + 1)
+                    'Add the table names to slctdTblsNameArray
+                    usrSlctdTblsNameArray(j) = usrFrmCtrl.Caption
                 End If
             End If
         Next usrFrmCtrl

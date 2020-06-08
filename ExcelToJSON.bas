@@ -1,169 +1,194 @@
 Attribute VB_Name = "ExcelToJSON"
-'Declare variable for storing selected tables
-Public SlctTbls()
-'Declare variable for storing selected table worksheets
-Public SlctSheets()
-'Declare variable for storing numbers of tables in the workbook
-Public TableCount As Integer
-'Declare variable for the file name storage
-Public jsonFile As String
+Option Explicit
+
+'Stores the names of tables that the user wants to convert to JSON.
+'The names are added to the array during the function SubmitBtn_Click() in ExcelToJSONForm.
+Public usrSlctdTblsNameArray() As String
+
+'Variables for iterating through loops
+Public i As Integer, j As Integer, k As Integer
+
+Public outputFileFQPN As String
+
+Public outputIndentation As Integer
+
 Sub ExcelToJSON()
-    'Turn off screen updates
+    outputIndentation = 4
+    
     Application.ScreenUpdating = False
-    'Declare variables for storing number of controls in the userform ExcelToJSONForm
-    Dim FormCtrlCount As Integer
-    FormCtrlCount = ExcelToJSONForm.Controls.Count
-    'Declare variables for tables and sheets
-    Dim Table As ListObject
-    Dim Sheet As Worksheet
-    'Declare array for storing table names
-    Dim TableArray()
-    'Declare variable for increasing the TableArray length
-    Dim x As Integer
-    x = 1
-    'Declare variable for storing names of generated checkboxes
-    Dim ChBxName As String
-    'Loop through all Worksheets in the workbook
-    For Each Sheet In Worksheets
-        'Loop through all tables in the workbook and count them
-        For Each Table In Sheet.ListObjects
-            TableCount = TableCount + 1
-            'Increase the TableArray length to be equal to the number of tables in the workbook
-            ReDim Preserve TableArray(0 To x + TableCount)
-            'Set the name of the current item in TableArray to be the same as the current table
-            TableArray(TableCount) = Table.Name
-            'Generate checkboxes in the userform ExcelToJSONForm
-            ChBxName = "Table " & TableCount
-            setcontrol = ExcelToJSONForm.Controls.Add("forms.checkbox.1", ChBxName, True)
-        Next Table
+    
+    Dim table As ListObject, sheet As Worksheet
+    
+    Dim numFormCtrls As Integer: numFormCtrls = ExcelToJSONForm.Controls.Count
+    
+    Dim allTableNamesInWbArray()
+    
+    'This variable stores the name of each table and is used to name and label the checkboxes
+    'that users uses to selects the tables to include in the output JSON file.
+    Dim tblNameToChBxName As String
+    
+    'Loop through all of the tables in the workbook and generate checkboxes
+    'with the same name as the tables. The checkboxes lets the user
+    'select which tables to export to JSON in ExcelToJSONForm.
+    For Each sheet In Worksheets
+        For Each table In sheet.ListObjects
+            i = i + 1
+            
+            ReDim Preserve allTableNamesInWbArray(0 To i + 1)
+            allTableNamesInWbArray(i) = table.Name
+            
+            tblNameToChBxName = table.Name & "ChBx"
+            Dim setCtrl As Boolean: setCtrl = ExcelToJSONForm.Controls.Add("forms.checkbox.1", tblNameToChBxName, True)
+            
+        Next table
     Next
-    'Declare variable for looping through checkboxes
+    
+    i = 0
     Dim checkBox As Object
-    'Loop through all checkboxes in the userform ExcelToJSONForm
     For Each checkBox In ExcelToJSONForm.Controls
-        'Increase iteration number
-        j = j + 1
-        'If the iteration has gone past the number of controls that existed before the checkboxes were created...
-        If j > FormCtrlCount Then
-            'Set poition, caption to the respective table name, autosize
+        i = i + 1
+        
+        If i > numFormCtrls Then
             With checkBox
-                .Top = (j * 30) - 130
+                .Top = (i * 30) - 130
                 .Left = 18
-                .Caption = TableArray(j - FormCtrlCount)
+                .Caption = allTableNamesInWbArray(i - numFormCtrls)
                 .AutoSize = True
             End With
         End If
+        
     Next checkBox
-    'Declare variable for user form height
-    Dim UsrFormHeight As Integer
-    UsrFormHeight = ((ExcelToJSONForm.Controls.Count) * 30)
-    'Set the position of SubmitBtn and CancelBtn
-    ExcelToJSONForm.SubmitBtn.Top = UsrFormHeight - 70
-    ExcelToJSONForm.CancelBtn.Top = UsrFormHeight - 70
-    'Show the userform ExcelToJSONForm
+    
+    Dim UsrFormWindowHeight As Integer: UsrFormWindowHeight = ((ExcelToJSONForm.Controls.Count) * 30)
+    ExcelToJSONForm.SubmitBtn.Top = UsrFormWindowHeight - 70
+    ExcelToJSONForm.CancelBtn.Top = UsrFormWindowHeight - 70
+    
     With ExcelToJSONForm
-        .Height = UsrFormHeight
+        .Height = UsrFormWindowHeight
         .Width = 400
         .Show
     End With
-    'Wait until ExcelToJSONForm is hidden before proceeding
+    
     Do While ExcelToJSONForm.Visible = True
     Loop
-    'Declare variable for storing desired file location
-    jsonFile = Application.GetSaveAsFilename(FileFilter:="JSON Files (*.json), *.json")
-    If jsonFile <> "" Then
-        'Open the file to start editing
-        Open jsonFile For Output As #1
-        'Declare variable for " character
-        Dim strQuote As String
-        strQuote = Chr$(34)
-        'Declare variable for storing Workbook name without file extension
-        Dim WBName As String
-        WBName = strQuote & Left(ActiveWorkbook.Name, Len(ActiveWorkbook.Name)) & strQuote
-        'Print initial curly bracket, name of the workbook and an array for all tables in the workbook
+    
+    outputFileFQPN = Application.GetSaveAsFilename(FileFilter:="JSON Files (*.json), *.json")
+    If outputFileFQPN <> "" Then
+    
+        Open outputFileFQPN For Output As #1
+        
         Print #1, "{"
-        Print #1, "    " & strQuote & "Source file name" & strQuote & ": " & WBName & ","
-        Print #1, "    " & strQuote & "Worksheets" & strQuote & ": " & "{"
-        'Select the first worksheet in the workbook
+        Print #1, createJsonKeyValuePair(outputIndentation * 1, "Source file name", ActiveWorkbook.Name, True)
+        Print #1, createJsonKeyValuePair(outputIndentation * 1, "Worksheets", "{", False)
+        
         Worksheets(1).Activate
-        'Loop through all Worksheets in the workbook for the 2nd time
-        For Each Sheet In Worksheets
-            tablesInSheet = 0
-            'Print initial curly bracket for the current sheet
-            Print #1, "        " & strQuote & Sheet.Name & strQuote & ": {"
-            'Print initial curly bracket for the "tables" object inside the sheet object
-            Print #1, "            " & strQuote & "Tables" & strQuote & ": {"
-            'Loop through all tables in the workbook for the 2nd time
-            For Each Table In Sheet.ListObjects
-                tablesInSheet = tablesInSheet + 1
-                For i = 0 To UBound(SlctTbls)
-                    If Table.Name = SlctTbls(i) Then
-                        'Count how many tables has been looped through
-                        TableCount = TableCount - 1
-                        'Print initial curly bracket for the current table
-                        Print #1, "                " & strQuote & Table.Name & strQuote & ": {"
+        
+        Dim numTablesInSheet As Integer
+        
+        For Each sheet In Worksheets
+            numTablesInSheet = 0
+            
+            'Print the JSON key and opening bracket for each object representing a worksheet
+            Print #1, createJsonKeyValuePair(outputIndentation * 2, sheet.Name, "{", False)
+            
+            'Print the JSON key and opening bracket for the "Tables" object inside each sheet object
+            Print #1, createJsonKeyValuePair(outputIndentation * 3, "Tables", "{", False)
+            
+            Dim printCommaUnlessLastIteration As Boolean
+            
+            For Each table In sheet.ListObjects
+                numTablesInSheet = numTablesInSheet + 1
+                
+                For i = 0 To UBound(usrSlctdTblsNameArray)
+                    If table.Name = usrSlctdTblsNameArray(i) Then
+                    
+                        'Print the JSON key and opening bracket for the object representing each table inside the "Tables" object
+                        Print #1, createJsonKeyValuePair(outputIndentation * 4, table.Name, "{", False)
+                        
                         'Loop through all rows in the current table
-                        For y = 1 To Table.ListRows.Count
-                            Table.ListRows(y).Range.Select
-                            'If the cell is empty, generate a name for the JSON Key
-                            Dim tblRowKeyVal As String
-                            tblRowKeyVal = IIf(((ActiveCell.Value) = ""), WorksheetFunction.Concat(Table.Name, y), Replace(CStr(ActiveCell.Value), strQuote, "\" & strQuote))
-                            'Print the cell value of the first cell in the row as a JSON key followed by curly brackets
-                            Print #1, "                    " & strQuote & tblRowKeyVal & strQuote & ": {"
-                            'Loop through all cells in current row, start with the second one
-                            For j = 2 To Table.ListColumns.Count
-                                'Select the second cell from the left in the row
+                        For j = 1 To table.ListRows.Count
+                            table.ListRows(j).Range.Select
+                            
+                            Dim tableRowIndexCellValue As String: tableRowIndexCellValue = ActiveCell.Value
+                            Dim tableNamePlusIterationNumber As String: tableNamePlusIterationNumber = WorksheetFunction.Concat(table.Name, j)
+                            Dim tableRowKey As String: tableRowKey = IIf((tableRowIndexCellValue = ""), tableNamePlusIterationNumber, tableRowIndexCellValue)
+                        
+                            Print #1, createJsonKeyValuePair(outputIndentation * 5, tableRowKey, "{", False)
+                            
+                            'Loop through all cells in the current row, and starts with the 2nd cell from the left.
+                            'The loop starts with the 2nd cell from the left because the 1st cell from the left is converted to a JSON Key for the rest of the cells in the same table row and the cells in the same row are converted to JSON Values
+                            For k = 2 To table.ListColumns.Count
                                 ActiveCell.Offset(, 1).Activate
-                                'Print the column header as key and cell contents as value
-                                Dim strToPrint As String
-                                strToPrint = "                        " & strQuote & Table.HeaderRowRange(j).Value & strQuote & ": " & strQuote & Replace(CStr(ActiveCell.Value), strQuote, "\" & strQuote) & strQuote
-                                'If the cell is not the last iteration, then print a ","
-                                If j < Table.ListColumns.Count Then
-                                    strToPrint = strToPrint & ","
-                                End If
-                                Print #1, strToPrint
-                            Next j
-                            'Reselect the first cell of the row
-                            ActiveCell.Offset(, (Table.ListColumns.Count * -1) + 1).Activate
-                            'If the loop is not on the last iteration, put a "," after the ending curly bracket, otherwise, skip it
-                            strToPrint = "                    " & "}"
-                            If y < Table.ListRows.Count Then
-                                strToPrint = strToPrint & ","
-                            End If
-                            Print #1, strToPrint
-                        Next
-                        'If the loop is not on the last iteration, put a "," after the ending curly bracket, otherwise, skip it
-                        strToPrint = "                " & "}"
-                        If tablesInSheet < Sheet.ListObjects.Count Then
-                            strToPrint = strToPrint & ","
-                        End If
-                        Print #1, strToPrint
+                                
+                                printCommaUnlessLastIteration = k < table.ListColumns.Count
+                                Print #1, createJsonKeyValuePair(outputIndentation * 6, table.HeaderRowRange(k).Value, ActiveCell.Value, printCommaUnlessLastIteration)
+                                
+                            Next k
+                            
+                            'Reselect the index cell of the current row
+                            ActiveCell.Offset(, (table.ListColumns.Count * -1) + 1).Activate
+                            
+                            printCommaUnlessLastIteration = j < table.ListRows.Count
+                            Print #1, createJsonClosingBracket((outputIndentation * 5), printCommaUnlessLastIteration)
+                            
+                        Next j
+                        
+                        printCommaUnlessLastIteration = numTablesInSheet < sheet.ListObjects.Count
+                        Print #1, createJsonClosingBracket((outputIndentation * 4), printCommaUnlessLastIteration)
+                        
                     End If
                 Next
-            Next Table
+            Next table
             'Print the closing bracket for the tables object inside the worksheet object
-            Print #1, "            " & "}"
-            'Print the closing curly bracket for the sheet
-            strToPrint = "        " & "}"
-            If Sheet.Index < Worksheets.Count Then
-                strToPrint = strToPrint & ","
-            End If
-            Print #1, strToPrint
+            Print #1, createJsonClosingBracket((outputIndentation * 3), False)
+            
+            printCommaUnlessLastIteration = sheet.Index < Worksheets.Count
+            Print #1, createJsonClosingBracket((outputIndentation * 2), printCommaUnlessLastIteration)
+            
             'If the loop has come to the last worksheet, activate the first one again
             If ActiveSheet.Index <> Worksheets.Count Then
                 Worksheets(ActiveSheet.Index + 1).Activate
             End If
         Next
         'Print closing square bracket and curly bracket
-        Print #1, "    " & "}"
-        Print #1, "}"
-        'Close the file editing
+        Print #1, createJsonClosingBracket((outputIndentation * 1), False)
+        Print #1, createJsonClosingBracket((outputIndentation * 0), False)
+        
         Close #1
         End
     Else
         End
     End If
-    'Turn on screen updates
+    
     Application.ScreenUpdating = True
-    MsgBox ("The table(s) were successfully exported to " + jsonFile)
+    MsgBox "The table(s were successfully exported to " + outputFileFQPN
 End Sub
+
+Public Function createJsonKeyValuePair(numSpacesToIndent As Integer, keyString As String, valueString As String, showComma As Boolean) As String
+    Dim output As String: output = ""
+    
+    For i = 1 To numSpacesToIndent
+        output = output & " "
+    Next i
+    
+    output = output & Chr$(34) & keyString & Chr$(34)
+    output = output & ": "
+    output = IIf(valueString = "{", output & "{", output & Chr$(34) & valueString & Chr$(34))
+    output = IIf(showComma, output & ",", output)
+    
+    createJsonKeyValuePair = output
+End Function
+
+Public Function createJsonClosingBracket(numSpacesToIndent As Integer, showComma As Boolean) As String
+    Dim output As String: output = ""
+    
+    For i = 1 To numSpacesToIndent
+        output = output & " "
+    Next i
+    
+    output = output & "}"
+    output = IIf(showComma, output & ",", output)
+    
+    createJsonClosingBracket = output
+End Function
+
