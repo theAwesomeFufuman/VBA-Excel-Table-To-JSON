@@ -18,6 +18,9 @@ Sub ExcelToJSON()
     numIndentationSpaces = 4
     
     Application.ScreenUpdating = False
+    Application.EnableEvents = False
+    Application.DisplayStatusBar = False
+    Application.Calculation = xlCalculationManual
     
     Dim originallySelectedSheet As String: originallySelectedSheet = ActiveSheet.Name
     
@@ -77,7 +80,7 @@ Sub ExcelToJSON()
     Loop
     
     outputFileFQPN = Application.GetSaveAsFilename(FileFilter:="JSON Files (*.json), *.json")
-    If outputFileFQPN <> "" And outputFileFQPN <> FALSEInLocalLang Then
+    If outputFileFQPN <> vbNullString And outputFileFQPN <> FALSEInLocalLang Then
         
         Open outputFileFQPN For Output As #1
         
@@ -116,7 +119,7 @@ Sub ExcelToJSON()
                             
                             Dim tableRowIndexCellValue As String: tableRowIndexCellValue = ActiveCell.Value
                             Dim tableNamePlusIterationNumber As String: tableNamePlusIterationNumber = WorksheetFunction.Concat(table.Name, j)
-                            Dim tableRowKey As String: tableRowKey = IIf((tableRowIndexCellValue = ""), tableNamePlusIterationNumber, tableRowIndexCellValue)
+                            Dim tableRowKey As String: tableRowKey = IIf((tableRowIndexCellValue = vbNullString), tableNamePlusIterationNumber, tableRowIndexCellValue)
                         
                             Print #1, createJsonKeyValuePair(numIndentationSpaces * 5, tableRowKey, "{", False)
                             
@@ -127,7 +130,7 @@ Sub ExcelToJSON()
                                 ActiveCell.Offset(, 1).Activate
                                 
                                 printCommaUnlessLastIteration = k < table.ListColumns.Count
-                                Print #1, createJsonKeyValuePair(numIndentationSpaces * 6, table.HeaderRowRange(k).Value, ActiveCell.Value, printCommaUnlessLastIteration)
+                                Print #1, createJsonKeyValuePair(numIndentationSpaces * 6, table.HeaderRowRange(k).Value, CStr(ActiveCell.Value), printCommaUnlessLastIteration)
                                 
                             Next k
                             
@@ -171,10 +174,13 @@ Sub ExcelToJSON()
     End If
     
     Application.ScreenUpdating = True
+    Application.EnableEvents = True
+    Application.DisplayStatusBar = True
+    Application.Calculation = xlCalculationAutomatic
 End Sub
 
 Public Function createJsonKeyValuePair(numSpacesToIndent As Integer, keyString As String, valueString As String, showComma As Boolean) As String
-    Dim output As String: output = ""
+    Dim output As String: output = vbNullString
     
     For i = 1 To numSpacesToIndent
         output = output & " "
@@ -189,7 +195,7 @@ Public Function createJsonKeyValuePair(numSpacesToIndent As Integer, keyString A
 End Function
 
 Public Function createJsonClosingBracket(numSpacesToIndent As Integer, showComma As Boolean) As String
-    Dim output As String: output = ""
+    Dim output As String: output = vbNullString
     
     For i = 1 To numSpacesToIndent
         output = output & " "
