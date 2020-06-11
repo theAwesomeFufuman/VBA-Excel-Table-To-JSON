@@ -25,7 +25,7 @@ Sub ExcelToJSON()
     
     Dim table As ListObject, sheet As Worksheet
     
-    Dim numFormCtrlsWithoutCheckBoxes As Integer: numFormCtrlsWithoutCheckBoxes = ExcelToJSONForm.Controls.Count
+    Dim numFormCtrlsNotCountingCheckBoxes As Integer: numFormCtrlsNotCountingCheckBoxes = ExcelToJSONForm.Controls.Count
     
     Dim tableNamesInCurrentWorkbook()
     
@@ -51,11 +51,11 @@ Sub ExcelToJSON()
     For Each userFormControl In ExcelToJSONForm.Controls
         i = i + 1
         
-        If i > numFormCtrlsWithoutCheckBoxes Then
+        If i > numFormCtrlsNotCountingCheckBoxes Then
             With userFormControl
-                .Top = (i * 30) - 130
-                .Left = 18
-                .Caption = tableNamesInCurrentWorkbook(i - numFormCtrlsWithoutCheckBoxes)
+                .Top = (i * 30) - 80
+                .Left = 108
+                .Caption = tableNamesInCurrentWorkbook(i - numFormCtrlsNotCountingCheckBoxes)
                 .AutoSize = True
             End With
         End If
@@ -64,8 +64,8 @@ Sub ExcelToJSON()
     
     Dim UsrFormWindowHeight As Integer: UsrFormWindowHeight = ExcelToJSONForm.Controls.Count * 30
     
-    ExcelToJSONForm.SubmitBtn.Top = UsrFormWindowHeight - 70
-    ExcelToJSONForm.CancelBtn.Top = UsrFormWindowHeight - 70
+    ExcelToJSONForm.SubmitBtn.Top = UsrFormWindowHeight - 60
+    ExcelToJSONForm.CancelBtn.Top = UsrFormWindowHeight - 60
     
     With ExcelToJSONForm
         .Height = UsrFormWindowHeight
@@ -153,7 +153,7 @@ Sub ExcelToJSON()
             Print #1, createJsonClosingBracket((numIndentationSpaces * 2), printCommaUnlessLastIteration)
             
             'If the loop is not on its last iteration, select the next sheet in the workbook
-            If ActiveSheet.Index <> Worksheets.Count Then
+            If ActiveSheet.Index < Worksheets.Count Then
                 Worksheets(ActiveSheet.Index + 1).Activate
             End If
         Next sheet
@@ -202,6 +202,8 @@ Public Function createJsonClosingBracket(numSpacesToIndent As Integer, showComma
 End Function
 
 Public Function getLocalTranslationOfFALSE()
+    'The last possible cell "XFD1048576" is selected because of its low risk of containing sensitive iformation and thus
+    'can be used to paste the local translation of "false"
     Dim originalValue As Variant: originalValue = Range("XFD1048576").Value
     
     Range("XFD1048576").Value = False
