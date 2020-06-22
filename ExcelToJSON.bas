@@ -149,11 +149,6 @@ Sub ExcelToJSON()
                         sheetContainsSelectedTables = True
                         numSelectedTablesInSheet = numSelectedTablesInSheet - 1
                         
-                        '(numTablesInSheet < sheet.ListObjects.Count) is incorrenct and must be replaced with another statement
-                        'that checks if the current table is the last to export in the sheet, possibly this can be solved with a dictionary of sheets and tables
-'                        If UBound(usrSlctdTblsNameArray) > 1 And numTablesInSheet < sheet.ListObjects.Count Then
-'                            printCommaUnlessLastTable = True
-'                        End If
                         printCommaUnlessLastTable = numSelectedTablesInSheet > 0
                     
                         If openingBracketsPrintedForCurrentSheet = False Then
