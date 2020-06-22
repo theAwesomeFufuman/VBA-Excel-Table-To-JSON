@@ -240,7 +240,10 @@ Public Function createJsonKeyValuePair(numSpacesToIndent As Integer, keyString A
     
     output = output & Chr$(34) & keyString & Chr$(34)
     output = output & ": "
+    
+    valueString = Replace(valueString, Chr$(34), "\" & Chr$(34))
     output = IIf(valueString = "{", output & "{", output & Chr$(34) & valueString & Chr$(34))
+    
     output = IIf(showComma, output & ",", output)
     
     createJsonKeyValuePair = output
