@@ -34,12 +34,17 @@ Sub ExcelToJSON()
     
     Dim tblNameToChBxName As String
     
+    Dim selectedSheetsAndTables As Object
+    Set selectedSheetsAndTables = CreateObject("Scripting.Dictionary")
+    
     'Loop through all of the tables in the workbook and generate checkboxes with corresponding names.
     'The checkboxes lets the user select which tables to export to JSON in ExcelToJSONForm.
     For Each sheet In Worksheets
+        
+        selectedSheetsAndTables.Add sheet.Name, "Test"
+        
         For Each table In sheet.ListObjects
             i = i + 1
-            
             ReDim Preserve tableNamesInCurrentWorkbook(0 To i + 1)
             tableNamesInCurrentWorkbook(i) = table.Name
             
@@ -47,7 +52,7 @@ Sub ExcelToJSON()
             Dim addNewCheckbox As Boolean: addNewCheckbox = ExcelToJSONForm.Controls.Add("forms.checkbox.1", tblNameToChBxName, True)
             
         Next table
-    Next
+    Next sheet
     
     i = 0
     Dim userFormControl As Object
@@ -94,26 +99,75 @@ Sub ExcelToJSON()
         
         Dim numTablesInSheet As Integer
         
+        Dim sheetContainsSelectedTables As Boolean
+        
+        Dim printCommaUnlessLastIteration As Boolean
+        
+        Dim printCommaUnlessLastTable As Boolean
+        
+        Dim numSheetsToLoopThrough As Integer
+        
+        Dim currentSheetHasASelectedTable As Boolean: currentSheetHasASelectedTable = False
+        
         For Each sheet In Worksheets
+            
+            For Each table In sheet.ListObjects
+                For i = 0 To UBound(usrSlctdTblsNameArray)
+                    If table.Name = usrSlctdTblsNameArray(i) Then
+                        currentSheetHasASelectedTable = True
+                    End If
+                Next i
+            Next table
+            
+            If currentSheetHasASelectedTable Then
+                numSheetsToLoopThrough = numSheetsToLoopThrough + 1
+                currentSheetHasASelectedTable = False
+            End If
+            
+        Next sheet
+        
+        Dim numSelectedTablesInSheet As String
+        
+        For Each sheet In Worksheets
+        
+            numSelectedTablesInSheet = countNumSelectedTablesInSheet(sheet.Name, usrSlctdTblsNameArray)
+        
+            sheetContainsSelectedTables = False
+            
             numTablesInSheet = 0
             
-            'Print the JSON key and opening bracket for each object representing a worksheet
-            Print #1, createJsonKeyValuePair(numIndentationSpaces * 2, sheet.Name, "{", False)
-            
-            'Print the JSON key and opening bracket for the "Tables" object inside each sheet object
-            Print #1, createJsonKeyValuePair(numIndentationSpaces * 3, "Tables", "{", False)
-            
-            Dim printCommaUnlessLastIteration As Boolean
+            Dim openingBracketsPrintedForCurrentSheet As Boolean: openingBracketsPrintedForCurrentSheet = False
             
             For Each table In sheet.ListObjects
                 numTablesInSheet = numTablesInSheet + 1
                 
+                printCommaUnlessLastTable = False
+                
                 For i = 0 To UBound(usrSlctdTblsNameArray)
                     If table.Name = usrSlctdTblsNameArray(i) Then
+                        
+                        sheetContainsSelectedTables = True
+                        numSelectedTablesInSheet = numSelectedTablesInSheet - 1
+                        
+                        '(numTablesInSheet < sheet.ListObjects.Count) is incorrenct and must be replaced with another statement
+                        'that checks if the current table is the last to export in the sheet, possibly this can be solved with a dictionary of sheets and tables
+'                        If UBound(usrSlctdTblsNameArray) > 1 And numTablesInSheet < sheet.ListObjects.Count Then
+'                            printCommaUnlessLastTable = True
+'                        End If
+                        printCommaUnlessLastTable = numSelectedTablesInSheet > 0
+                    
+                        If openingBracketsPrintedForCurrentSheet = False Then
+                            'Print the JSON key and opening bracket for each object representing a worksheet
+                            Print #1, createJsonKeyValuePair(numIndentationSpaces * 2, sheet.Name, "{", False)
+                        
+                            'Print the JSON key and opening bracket for the "Tables" object inside each sheet object
+                            Print #1, createJsonKeyValuePair(numIndentationSpaces * 3, "Tables", "{", False)
+                        End If
+                    
+                        openingBracketsPrintedForCurrentSheet = True
                     
                         'Print the JSON key and opening bracket for the object representing each table inside the "Tables" object
                         Print #1, createJsonKeyValuePair(numIndentationSpaces * 4, table.Name, "{", False)
-                        
                         For j = 1 To table.ListRows.Count
                             table.ListRows(j).Range.Select
                             
@@ -142,23 +196,26 @@ Sub ExcelToJSON()
                             
                         Next j
                         
-                        printCommaUnlessLastIteration = numTablesInSheet < sheet.ListObjects.Count
-                        Print #1, createJsonClosingBracket((numIndentationSpaces * 4), printCommaUnlessLastIteration)
+                        Print #1, createJsonClosingBracket((numIndentationSpaces * 4), printCommaUnlessLastTable)
                         
                     End If
                 Next
             Next table
             
-            Print #1, createJsonClosingBracket((numIndentationSpaces * 3), False)
+            If sheetContainsSelectedTables Then
+                Print #1, createJsonClosingBracket((numIndentationSpaces * 3), False)
             
-            printCommaUnlessLastIteration = sheet.Index < Worksheets.Count
-            
-            Print #1, createJsonClosingBracket((numIndentationSpaces * 2), printCommaUnlessLastIteration)
+                numSheetsToLoopThrough = numSheetsToLoopThrough - 1
+                printCommaUnlessLastIteration = (numSheetsToLoopThrough >= 1)
+                
+                Print #1, createJsonClosingBracket((numIndentationSpaces * 2), printCommaUnlessLastIteration)
+            End If
             
             'If the loop is not on its last iteration, select the next sheet in the workbook
             If ActiveSheet.Index < Worksheets.Count Then
                 Worksheets(ActiveSheet.Index + 1).Activate
             End If
+            
         Next sheet
         
         Sheets(originallySelectedSheet).Select
@@ -219,4 +276,21 @@ Public Function getLocalTranslationOfFALSE()
     Range("XFD1048576").Value = originalValue
     
     getLocalTranslationOfFALSE = localTranslation
+End Function
+
+Public Function isInArray(stringToSearchFor As String, arrayName() As String)
+    isInArray = UBound(Filter(arrayName, stringToSearchFor)) > -1
+End Function
+
+Public Function countNumSelectedTablesInSheet(sheetName As String, tableNamesArray() As String)
+    Dim table As ListObject
+    Dim numTables As Integer: numTables = 0
+    For Each table In Sheets(sheetName).ListObjects
+        For i = 0 To UBound(tableNamesArray)
+            If table.Name = tableNamesArray(i) Then
+                numTables = numTables + 1
+            End If
+        Next i
+    Next table
+    countNumSelectedTablesInSheet = numTables
 End Function
