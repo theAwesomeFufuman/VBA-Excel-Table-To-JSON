@@ -126,7 +126,7 @@ Sub ExcelToJSON()
             
         Next sheet
         
-        Dim numSelectedTablesInSheet As String
+        Dim numSelectedTablesInSheet As Integer
         
         For Each sheet In Worksheets
         
@@ -143,8 +143,7 @@ Sub ExcelToJSON()
                 
                 printCommaUnlessLastTable = False
                 
-                For i = 0 To UBound(usrSlctdTblsNameArray)
-                    If table.Name = usrSlctdTblsNameArray(i) Then
+                For i = 0 To numSelectedTablesInSheet
                         
                         sheetContainsSelectedTables = True
                         numSelectedTablesInSheet = numSelectedTablesInSheet - 1
@@ -193,7 +192,6 @@ Sub ExcelToJSON()
                         
                         Print #1, createJsonClosingBracket((numIndentationSpaces * 4), printCommaUnlessLastTable)
                         
-                    End If
                 Next
             Next table
             
@@ -238,7 +236,7 @@ Public Function createJsonKeyValuePair(numSpacesToIndent As Integer, keyString A
         output = output & " "
     Next i
     
-    output = output & Chr$(34) & keyString & Chr$(34)
+    output = output & Chr$(34) & Replace(keyString, Chr$(34), "\" & Chr$(34)) & Chr$(34)
     output = output & ": "
     
     valueString = Replace(valueString, Chr$(34), "\" & Chr$(34))
